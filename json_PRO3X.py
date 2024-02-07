@@ -95,6 +95,8 @@ def parseArgs(argv0):
                         help='user name (Redfish Server)', default="labuser")
     parser.add_argument('--passwd', type=str, 
                         help='password (Redfish Server)', default="100Yard-")
+    parser.add_argument('--output', type=str,
+                        help="Output file name for resulting json", default=str("Results" + "_" + str(get_curtime())))
     theArgs = parser.parse_args()
 
     return theArgs
@@ -222,6 +224,7 @@ def main():
     # Optional args
     dev_user = args.user                  # Over-rides default
     dev_passwd = args.passwd              # Over-rides default
+    outfilename = args.output             # Basename for JSON output file
 
     # Establish Connection 
     conn, root = prepConn(dev_ip, dev_user, dev_passwd)
@@ -232,9 +235,6 @@ def main():
     ###################
     # Record Monitoring Start Time
     start_curtime = get_curtime()
-
-    # Basename for JSON output file
-    outfilename = str("Results" + "_" + str(start_curtime))
 
     # Initialize Test Run and Test Config dicts
     testrun_dict = init_rundict(get_curtime(), "power-usage")
