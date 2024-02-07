@@ -53,7 +53,7 @@
 
 ##############################################################
 # IMPORTS
-import argparse, logging, requests
+import argparse, logging, requests, signal
 import sys, time, statistics, json, io
 from datetime import datetime
 import pytz
@@ -71,9 +71,14 @@ from universal_resources import get_collection, get_resource
 
 ##############################################################
 # GLOBAL VARS
+active_loop = True
 
 ##############################################################
 # FUNCTIONS
+def graceful_signal(_, __):
+    global active_loop
+    active_loop = False
+
 def parseArgs(argv0):
     # Parse ARGs and return them
     parser = argparse.ArgumentParser(argv0, 
@@ -186,6 +191,9 @@ def get_curtime():
 ############
 # BEGIN MAIN
 def main():
+    global active_loop
+    signal.signal(signal.SIGTERM, graceful_signal) # Handle `kill` gracefully
+
     # Dictionaries
     testrun_dict = {}        # complete testrun results
     testcfg_dict = {}        # test Configuration
@@ -242,7 +250,7 @@ def main():
     begin_ts = time.perf_counter()
 
     try:
-        while True:
+        while active_loop:
             # Get Readings for the requested Outlet number
             # Measure time to probe and report in the Summary Report
             start_ts = time.perf_counter()
@@ -273,6 +281,7 @@ def main():
 
     except KeyboardInterrupt:
         print('Interrupted!')
+        active_loop = False
 
     #######################################
     # Monitoring loop Interrupted - cleanup and write JSON Output
