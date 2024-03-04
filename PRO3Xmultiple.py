@@ -100,7 +100,7 @@ def parseArgs(argv0):
     parser.add_argument('--passwd', type=str, 
                         help='password (Redfish Server)', default="100Yard-")
     parser.add_argument('--output', type=str,
-                        help="Output file name for resulting json", default=str("Results" + "_" + str(get_curtime())))
+                        help="Output file name for resulting json", default=str(f"Results_{str(get_curtime())}.json"))
     theArgs = parser.parse_args()
 
     return theArgs
@@ -267,8 +267,6 @@ def main():
 
     # Record Start Time - used to calculate total Monitoring runtime
     start_curtime = get_curtime()
-    # Basename for JSON output file
-    outfilename = str("Results" + "_" + str(start_curtime))
 
     # Print opening message
     print(f"Monitoring Outlet numbers: {outlets_list}. Pausing {pause_secs} seconds between Readings")
@@ -340,7 +338,7 @@ def main():
     testrun_dict["test_summary"] = testsum_dict
 
     # Write JSON output file
-    write_json(testrun_dict, outfilename + ".json")
+    write_json(testrun_dict, outfilename)
 
 # END MAIN
 ##########
