@@ -19,8 +19,8 @@ def init_sumdict(the_loopctr, the_runtime, the_avgPT, the_avgPWR):
 #         "start_ts": <ts_start>,
 #         "end_ts": <ts_end>,
 #         "numsamples": <loopctr>,
-#         "total_rt": <total_rt:>,
-#         "avg_ptime": <avg_ptime>,
+#         "total_runtime": <total_rt:>,
+#         "avg_probetime": <avg_ptime>,
 #         "avg_power": <avg_reading>
 #     }
 # }
@@ -30,7 +30,8 @@ def init_cfgdict(the_pduIP, the_interval, the_outlet):
 #     "device_type": <devtype>,
 #     "device_ip": <devIP>,
 #     "interval": <interval>,
-#     "outlet": <outlet#>
+#     "total_outlets": <total_outlets>,
+#     "outlets": <outlets_list[]>
 # }
 ###########
 def init_resdict(the_sample, the_ts, the_outlet, the_power):

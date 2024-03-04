@@ -1,18 +1,19 @@
 #!/usr/bin/python3
-# Monitors power usage per PDU Outlet using Redfish
+# Monitors power usage perf PDU Outlet using Redfish
 # Writes JSON file in format ready for ingest in ElasticSearch
 #
 # Tested on RHEL 8.9 - Python 3.6.8
+# Tested on RHEL 9.3 - Python 3.9.18
 # DEPENDENCIES: # python3 -m pip install pytz sushy
 #
 # File 'universal_resources.py' required
-# Redfish on PRO3X requires Firmmware Version 4.0.21 and later
+# Redfish on PRO3X requires Firmware Version 4.0.21 and later
 #
 # USAGE:
-# $ ./jsonJanPRO3X.py --ip 10.27.242.2 --interval 5 --outlet 3
-##############################################################
+# $ ./PRO3Xmultiple.py --ip 10.27.242.2 --interval 5 --outlets 3 4 5
+#####################################################################
 
-##############################################################
+#################################################
 # DICTIONARY Format - dicts initialized in main()
 #
 # testrun_dict = {
@@ -28,9 +29,9 @@
 #         "start_ts": <start_curtime>,
 #         "end_ts": <end_curtime>,
 #         "numsamples": <loopctr>,
-#         "total_rt": <total_rt>,
-#         "avg_pt": <avg_ptime>,
-#         "avg_pwr": <avg_reading>
+#         "total_runtime": <total_rt>,
+#         "avg_probetime": <avg_ptime>,
+#         "avg_power": <avg_reading>
 #     }
 # }
 ###########
@@ -38,7 +39,8 @@
 #     "device_type": <dev_type>
 #     "device_ip": <dev_ip>,
 #     "interval": <interval>,
-#     "outlet": <outlet#>
+#     "total_outlets": <total_outlets>,
+#     "outlets": <outlets_list[]>
 # }
 ###########
 # testres_dict = {
@@ -88,8 +90,10 @@ def parseArgs(argv0):
                          help='ip address (Redfish Server)')
     req_grp.add_argument('--interval', required=True, type=str,
                          help='delay in seconds between Readings')
-    req_grp.add_argument('--outlet', required=True, type=str,
-                         help='PDU outlet number to monitor')
+##    req_grp.add_argument('--outlet', required=True, type=str,
+##                         help='PDU outlet number to monitor')
+    req_grp.add_argument('--outlets', nargs='+', required=True, type=int, 
+                         help='PDU outlet number(s) to monitor')
 # Optional Args
     parser.add_argument('--user', type=str, 
                         help='user name (Redfish Server)', default="labuser")
@@ -147,14 +151,16 @@ def init_rundict(the_curtime, the_type):
 
     return the_rundict
 
-def init_cfgdict(the_devtype, the_devIP, the_interval, the_outlet):
+def init_cfgdict(the_devtype, the_devIP, the_interval, the_outlets, the_total):
     # Initialize new dict{} for the test Config
     the_cfgdict = {}             # new empty dict
 
     the_cfgdict["device_type"] = str(the_devtype)
     the_cfgdict["device_ip"] = str(the_devIP)
     the_cfgdict["interval"] = str(the_interval)
-    the_cfgdict["outlet"] = str(the_outlet)
+    the_cfgdict["total_outlets"] = str(the_total)
+    # NOTE: the_outlets is a list
+    the_cfgdict["outlets"] = str(', '.join(map(str, the_outlets)))
 
     return the_cfgdict
 
@@ -177,8 +183,8 @@ def init_sumdict(the_start, the_end, the_loopctr, the_runtime, the_avgPT, the_av
     the_sumdict["start_ts"] = str(the_start)
     the_sumdict["end_ts"] = str(the_end)
     the_sumdict["numsamples"] = int(the_loopctr)
-    the_sumdict["total_rt"] = float(the_runtime)
-    the_sumdict["avg_ptime"] = float(the_avgPT)
+    the_sumdict["total_runtime"] = float(the_runtime)
+    the_sumdict["avg_probetime"] = float(the_avgPT)
     the_sumdict["avg_power"] = float(the_avgPWR)
 
     return the_sumdict
@@ -207,9 +213,15 @@ def main():
     total_rt = 0                  # Total runtime (in sec)
     readings_list = []            # wattage readings
     ptimes_list = []              # probe timing results
+    outlets_list = []             # parsed from cmdline
     dev_type = "PRO3X"            # hardcoded - only device type supported
     outlets_uri = "/redfish/v1/PowerEquipment/RackPDUs/1/Outlets"
-    outlet_fields = {
+    # Used to get number of Outlets - verify requested Outlet Numbers
+    outlet_uri_fields = {
+        "total": base.Field('Members@odata.count'),
+    }
+    # Used to get Readings from each requested Outlet
+    outlet_pwr_fields = {
         "id": base.Field('Id'),
         "power": base.Field(['PowerWatts', 'Reading']),
 ##        "energy": base.Field(['EnergykWh', 'Reading']),
@@ -220,7 +232,8 @@ def main():
     # Req'd args
     dev_ip = args.ip                      # user provided
     pause_secs = args.interval            # user provided
-    outlet_number = args.outlet           # Req'd for dev_type=PRO3X
+##    outlet_number = args.outlet           # Req'd for dev_type=PRO3X
+    outlets_list = list(args.outlets)     # Req'd for dev_type=PRO3X
     # Optional args
     dev_user = args.user                  # Over-rides default
     dev_passwd = args.passwd              # Over-rides default
@@ -228,56 +241,80 @@ def main():
 
     # Establish Connection 
     conn, root = prepConn(dev_ip, dev_user, dev_passwd)
-    # Get the collection of Outlets
-    outlets_coll = get_collection(root, outlets_uri)
-    theoutlet_uri = outlets_uri + '/' + outlet_number
 
-    ###################
-    # Record Monitoring Start Time
-    start_curtime = get_curtime()
+    # Verify requested outlet numbers against number of members
+    num_outlets = get_resource(root, outlets_uri, outlet_uri_fields)
+    total_outlets = num_outlets.total
+##    print(f"total_outlets: {total_outlets}")     # DEBUG
+    if min(outlets_list) < 1 or max(outlets_list) > total_outlets:
+        print(f"Invalid Outlet number. Found 1-{total_outlets}. Exiting")
+        conn.close()
+        sys.exit()
+
+##    print(f"args.outlets: {args.outlets}")     # DEBUG
+##    print(f"outlets_list: {outlets_list}")     # DEBUG
 
     # Initialize Test Run and Test Config dicts
     testrun_dict = init_rundict(get_curtime(), "power-usage")
-    testcfg_dict = init_cfgdict(dev_type, dev_ip, pause_secs, outlet_number)
+    testcfg_dict = init_cfgdict(dev_type, dev_ip, pause_secs, outlets_list,
+                                total_outlets)
     testrun_dict["test_config"] = testcfg_dict
 
+##    print(json.dumps(testcfg_dict, indent=4))     # DEBUG
+
+    # Get the collection of Outlets
+    outlets_coll = get_collection(root, outlets_uri)
+
+    # Record Start Time - used to calculate total Monitoring runtime
+    start_curtime = get_curtime()
+    # Basename for JSON output file
+    outfilename = str("Results" + "_" + str(start_curtime))
+
     # Print opening message
-    print(f"Monitoring Outlet number: {outlet_number}. Pausing {pause_secs} seconds between Readings")
+    print(f"Monitoring Outlet numbers: {outlets_list}. Pausing {pause_secs} seconds between Readings")
     print("Hit Control-C <SIGINT> to end\n")
 
     #######################################
     # Main Monitoring Loop - Record Samples
     begin_ts = time.perf_counter()
 
+    # For each outlet (in outlets_list[]), probe for power reading
+    # Contue monitoring until Interrupted
     try:
         while active_loop:
-            # Get Readings for the requested Outlet number
-            # Measure time to probe and report in the Summary Report
-            start_ts = time.perf_counter()
-            svr_outlet = outlets_coll.get_member(theoutlet_uri, outlet_fields)
-            end_ts = time.perf_counter()
-            this_ptime = round((end_ts - start_ts), 2)
-            this_curtime = get_curtime()
-            outlet_id = svr_outlet.id
-            power_W = svr_outlet.power
-            print(f'  Outlet# {outlet_id} Sample# {loopctr}')  # DEBUG
+            # Get Readings for each Outlet in the outlets_list[]
+            for outlet_number in outlets_list:
+                uri = outlets_uri + '/' + str(outlet_number)
+                # Get Readings for this requested Outlet number
+                # Also record time to probe and report in output
+                start_ts = time.perf_counter()
+                svr_outlet = outlets_coll.get_member(uri, outlet_pwr_fields)
+                end_ts = time.perf_counter()
+                this_ptime = round((end_ts - start_ts), 2)
+                this_curtime = get_curtime()
+                outlet_id = svr_outlet.id
+                power_W = svr_outlet.power
+                print(f'  Outlet# {outlet_id} Sample# {loopctr}')  # DEBUG
 
-            # Append to Summary stats for this Sample
-            readings_list.append(float(power_W))
-            ptimes_list.append(float(this_ptime))
+                # Append to Summary stats for this Sample
+                readings_list.append(float(power_W))
+                ptimes_list.append(float(this_ptime))
 
-            # Initialize Test Result dict for this Sample
-            testres_dict = {}        # test Results (per Sample)
-            testres_dict = init_resdict(loopctr, this_curtime, outlet_id,
+                # Initialize Test Result dict for this Sample
+                testres_dict = {}        # test Results (per Sample)
+                testres_dict = init_resdict(loopctr, this_curtime, outlet_id,
                                         power_W, this_ptime)
 
-            # Append this Sample's Test Result dict to testres_list[]
-            # testres_list[] is a list of dicts, one per Sample
-            testres_list.append(testres_dict)
+                # Append this Sample's Test Result dict to testres_list[]
+                # testres_list[] is a list of dicts, one per Sample
+                testres_list.append(testres_dict)
+                loopctr = loopctr + 1
 
-            # Pause and incr loopctr
+            # All the Outlets readings recorded,
+            # now PAUSE and begin again with the first
             time.sleep(int(pause_secs))
-            loopctr = loopctr + 1
+
+            # Add code to detect if 'interval' needs to be increased
 
     except KeyboardInterrupt:
         print('Interrupted!')

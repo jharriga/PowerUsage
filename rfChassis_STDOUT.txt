@@ -1,0 +1,34 @@
+$ ./rfChassis.py <Redfish IP> <acct> <passwd>
+
+Read CFG file: rf_properties.cfg
+Searching for these Properties:
+ ['PowerConsumedWatts', 'AverageConsumedWatts', 'IntervalInMin', 'OutputWattage']
+Hit Control-C <SIGINT> to end
+
+
+Sample #1
+time elapsed in getMember_uri: 0.83
+time elapsed in get_DateTime: 3.54
+DateTime 2024-03-01T20:10:48+00:00
+time elapsed in getMember_uri: 0.915
+Chassis Power Data:
+	 PowerConsumedWatts 271
+time elapsed in get_chassisPower: 3.18
+
+<SNIPPED SAMPLES 2-15>
+
+Sample #16
+time elapsed in get_DateTime: 0.939
+DateTime 2024-03-01T20:12:35+00:00
+Chassis Power Data:
+	 PowerConsumedWatts 280
+time elapsed in get_chassisPower: 0.927
+Interrupted!
+Run Summary: 
+> Total Samples: 16
+> MIN Reading: 270.0
+> MAX Reading: 281.0
+> AVG Reading: 274.88
+> AVG Probe Time: 0.98
+> Total Runtime: 115.5
+DONE

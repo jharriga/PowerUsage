@@ -1,4 +1,4 @@
-[laptop PRO3X]$ ansible-playbook --e "pdu=10.27.242.2 sut=192.168.0.122 runtime=60 interval=5 outlet=3 outfile=3rd.log" ./3rd_test.yml 
+[laptop PRO3X$ ansible-playbook --e "pdu=10.27.242.2 sut=192.168.0.122 runtime=60 interval=5 outlet=3 outfile=3rd.log" ./3rd_test.yml 
 [WARNING]: provided hosts list is empty, only localhost is available. Note that
 the implicit localhost does not match 'all'
 

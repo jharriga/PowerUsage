@@ -1,9 +1,13 @@
 # USAGE: 
-#  $ ansible-playbook -e "pdu=<IP1> sut=<IP2> runtime=60 interval=5 outlet=3" ./<file>.yml
+#  $ ansible-playbook -e "rf=<IP1> sut=<IP2> runtime=60 interval=5 numpar=128"
 # STEPS:
 #       Execute workload on SUT as async task
 #       Start power script on localhost as async task
 #       Stop pwr script and report results
+# OUTPUT: '<numpar>_test.log'  contains pwr measurement readings
+#
+# MUST EDIT TO ADD LOGIN CREDENTIALS at lines 43 and 71
+# ENSURE THAT PATH TO {pwr_script} line 67 IS VALID
 ############################################################################
 ---
 # PLAY 1: Start with some housekeeping tasks
@@ -14,12 +18,11 @@
     - name: Verify all req'd extra-vars are defined
       ansible.builtin.assert:
         that:
-          - pdu != ""
+          - rf != ""
           - sut != ""
           - runtime != ""
           - interval != ""
-          - outlet != ""
-          - outfile != ""
+          - numpar != ""
 
 # Workaround to utilize 'sut' var as host
     - add_host:
@@ -34,20 +37,22 @@
   remote_user: root
   become: false
   gather_facts: false
-# pad asynctime for Workload to ensure adequate wall clocktime
+# Pad asynctime for Workload to ensure adequate wall clocktime
   vars:
     asynctime: "{{ (runtime * 2)|int|abs }}"
     ansible_python_interpreter: /usr/bin/python3
-    ROOT_PASSWORD: password
+    ROOT_PASSWORD: <FILL THIS IN>
   tasks:
-    - name: set root password
+    - name: set sut_host root password
       set_fact:
         ansible_password: "{{ ROOT_PASSWORD }}"
 
     - name: Run Workload
 #      Requires gather_facts
 #      command: openssl speed -evp sha256 -seconds "{{ runtime }}" -async_jobs "{{ ansible_processor_nproc }}"
-      command: openssl speed -evp sha256 -seconds "{{ runtime }}"
+#
+# Specify -bytes' to ensure runtime (only one is performed)
+      command: openssl speed -evp sha256 -bytes 16384 -seconds "{{ runtime }}" -multi "{{ numpar }}"
       async: "{{ asynctime }}"
       poll: 0
       register: workload
@@ -56,17 +61,20 @@
 - hosts: localhost
   become: false
   gather_facts: false
-# pad asynctime for to ensure adequate wall clocktime
-# MAKE THESE PLAYBOOK GLOBALS
+# Pad asynctime to ensure adequate wall clocktime
   vars:
     ansible_python_interpreter: /usr/bin/python3
     asynctime: "{{ (runtime * 2)|int|abs }}"
-    pwr_script: testJan26.py
+    pwr_script: rfChassis.py
+    rfSvr: "{{ rf }}"
+    outfile: "{{ numpar }}_test.log"
+    rfUser: root
+    rfPasswd: <FILL THIS IN>
 
   tasks:
     - name: Start power monitoring script as async task
-#      command: "./{{ pwr_script }} --ip {{ pdu }} --interval {{ interval }} --outlet {{ outlet }}"
-      shell: "./{{ pwr_script }} --ip {{ pdu }} --interval {{ interval }} --outlet {{ outlet }} > {{ outfile }}"
+#      command: "../{{ pwr_script }} --ip {{ pdu }} --interval {{ interval }} --outlet {{ outlet }}"
+      shell: "../{{ pwr_script }} {{ rfSvr }} {{ rfUser }} {{ rfPasswd } > {{ outfile }}"
       async: "{{ asynctime }}"
       poll: 0
 #      register: pwr_monitor
@@ -92,13 +100,6 @@
     - name: DEBUG
       ansible.builtin.debug:
         msg: "PID {{ pwr_pid.stdout }} {{ pwr_script }} killed"
-
-#    FAILS with missing dict object 'stdout'
-#    - name: Save pwr_script output to logfile
-#      copy:
-#        content: "{{ pwr_monitor.stdout }}"
-#        dest: "./{{ outfile }}"
-#      run_once: true
 
     - name: Save pwr_script output to logfile
       ansible.builtin.debug:
