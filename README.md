@@ -14,4 +14,10 @@ PRO3Xmultiple.py - probes Redfish URI /redfish/v1/PowerEquipment for PDU per Out
 universal_resources.py - function definitions required by PRO3Xmultiple.py<br>
 <br>
 Ansible/ - folder with playbook and supporting scripts.<br>
-> - Coordinates Power Script and Workload processes<br> 
+> - Coordinates Power Script and Workload processes<br>
+
+## PBENCH USAGE
+To register this repo as a pbench tool, use the following command to do so.
+```bash
+pbench-register-tool --name=user-tool -- --tool-name=powermon --start-script="<PATH TO REPO>/pbench_scripts/start.sh" --stop-script="<PATH TO REPO>/pbench_scripts/stop.sh"
+```
