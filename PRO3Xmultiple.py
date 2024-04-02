@@ -55,7 +55,7 @@
 
 ##############################################################
 # IMPORTS
-import argparse, logging, requests
+import argparse, logging, requests, signal
 import sys, time, statistics, json, io
 from datetime import datetime
 import pytz
@@ -73,9 +73,14 @@ from universal_resources import get_collection, get_resource
 
 ##############################################################
 # GLOBAL VARS
+active_loop = True
 
 ##############################################################
 # FUNCTIONS
+def graceful_signal(_, __):
+    global active_loop
+    active_loop = False
+
 def parseArgs(argv0):
     # Parse ARGs and return them
     parser = argparse.ArgumentParser(argv0, 
@@ -94,6 +99,8 @@ def parseArgs(argv0):
                         help='user name (Redfish Server)', default="labuser")
     parser.add_argument('--passwd', type=str, 
                         help='password (Redfish Server)', default="100Yard-")
+    parser.add_argument('--output', type=str,
+                        help="Output file name for resulting json", default=str(f"Results_{str(get_curtime())}.json"))
     theArgs = parser.parse_args()
 
     return theArgs
@@ -192,6 +199,9 @@ def get_curtime():
 ############
 # BEGIN MAIN
 def main():
+    global active_loop
+    signal.signal(signal.SIGTERM, graceful_signal) # Handle `kill` gracefully
+
     # Dictionaries
     testrun_dict = {}        # complete testrun results
     testcfg_dict = {}        # test Configuration
@@ -227,6 +237,7 @@ def main():
     # Optional args
     dev_user = args.user                  # Over-rides default
     dev_passwd = args.passwd              # Over-rides default
+    outfilename = args.output             # Basename for JSON output file
 
     # Establish Connection 
     conn, root = prepConn(dev_ip, dev_user, dev_passwd)
@@ -256,8 +267,6 @@ def main():
 
     # Record Start Time - used to calculate total Monitoring runtime
     start_curtime = get_curtime()
-    # Basename for JSON output file
-    outfilename = str("Results" + "_" + str(start_curtime))
 
     # Print opening message
     print(f"Monitoring Outlet numbers: {outlets_list}. Pausing {pause_secs} seconds between Readings")
@@ -270,7 +279,7 @@ def main():
     # For each outlet (in outlets_list[]), probe for power reading
     # Contue monitoring until Interrupted
     try:
-        while True:
+        while active_loop:
             # Get Readings for each Outlet in the outlets_list[]
             for outlet_number in outlets_list:
                 uri = outlets_uri + '/' + str(outlet_number)
@@ -307,6 +316,7 @@ def main():
 
     except KeyboardInterrupt:
         print('Interrupted!')
+        active_loop = False
 
     #######################################
     # Monitoring loop Interrupted - cleanup and write JSON Output
@@ -328,7 +338,7 @@ def main():
     testrun_dict["test_summary"] = testsum_dict
 
     # Write JSON output file
-    write_json(testrun_dict, outfilename + ".json")
+    write_json(testrun_dict, outfilename)
 
 # END MAIN
 ##########
