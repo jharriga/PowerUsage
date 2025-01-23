@@ -11,7 +11,7 @@ max_freq=1410
 multiplier=2 
 
 delay=15        # Fixed DELAY between INNER-LOOP runs
-runtime=30      # runtime duration for each gpu-burn run
+runtime=100     # runtime duration for each 'gpu-burn' run
 sampletime=3    # sample time for PMREP Metrics
 
 # Define workload
