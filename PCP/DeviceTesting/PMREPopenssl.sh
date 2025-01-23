@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Fixed DELAY between runs
+# Fixed DELAY between INNER-LOOP runs
 delay=15
 
 # OUTER Loop - increase $duration
