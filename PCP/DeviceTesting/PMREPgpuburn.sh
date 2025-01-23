@@ -1,33 +1,41 @@
 #!/bin/bash
+# Run with existing Power Cap
 
-# Fixed DELAY between INNER-LOOP runs
-delay=15
+# define workload
+workload="./gpu_burn ${runtime}"
+echo "Workload: ${workload}"
+    
+delay=15        # Fixed DELAY between INNER-LOOP runs
+runtime=30      # runtime duration for each gpu-burn run
+sampletime=3    # sample time for PMREP Metrics
 
-# OUTER Loop - increase $duration
-duration=10
+# OUTER Loop - vary GPU Frequency
+freq_array=
 for multiplier in {1..4}; do
-    this_dur=$((duration*multiplier))
-    echo "Delay between samples: ${this_dur} seconds"
-    load="openssl speed -evp sha256 -bytes 16384 -seconds ${this_dur} \
-          -multi $(nproc)"
-    echo "Workload: ${load}"
-    fname="${this_dur}sec.csv"
+    this_freq=$((duration*multiplier))   *REDO*
+    echo "GPU Freq for these runs: ${this_freq}"
+    # Apply GPU Frequency
+    nvidia-smi -lgc $this_freq,$this_freq
+
+    fname="${this_freq}sec.csv"
 
     # Start PMREP in backgrd and record PID
-    pmrep -t 3 -o csv -F ${fname} \
+    pmrep -t ${sampletime} -o csv -F ${fname} \
         openmetrics.RFchassis openmetrics.RFpdu1 openmetrics.RFpdu2 \
         denki.rapl openmetrics.kepler.kepler_node_platform_joules_total \
         openmetrics.control.fetch_time &
     pmrepPID=$!
+
+    # Is a SYNC point required to ensure PMREP is ready?
     
     # INNER Loop - repeat for 5 samples 
     echo -n "Sample "
     for sample_ctr in {1..5}; do
         echo -n "${sample_ctr}, "
         sleep $delay
-##        $load &> /dev/null
+##        $workload &> /dev/null
     done
-# Terminate PMREP. Force flush buffers by using SIGUSR1 signal 
+# Terminate PMREP. Flush buffers by sendng SIGUSR1 signal 
     kill -SIGUSR1 ${pmrepPID}
     echo; echo "------------------"
 
