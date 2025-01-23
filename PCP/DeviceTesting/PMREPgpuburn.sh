@@ -15,8 +15,10 @@ runtime=30      # runtime duration for each gpu-burn run
 sampletime=3    # sample time for PMREP Metrics
 
 # Define workload
-executable="./gpu_burn"
+executable="./gpu_burn"                     # adjust for your executable location
 workload="${executable} ${runtime}"
+parsing="| tac | grep -m 1 Gflop"          # specific to gpu_burn output
+exec_str="${workload} ${parsing}"
 echo "Workload: ${workload}"
 
 # Verify workload is avalaible on the system
@@ -51,7 +53,7 @@ while [ $this_freq .lt. $max_freq ]; do
     for sample_ctr in {1..5}; do
         echo -n "${sample_ctr}, "
         sleep $delay
-##        $workload &> /dev/null     # Record GFLOPS for the run
+##        $exec_str &> /dev/null     # Record GFLOPS for the run
     done
     # Terminate PMREP. Flush buffers by sendng SIGUSR1 signal 
     kill -SIGUSR1 ${pmrepPID}
