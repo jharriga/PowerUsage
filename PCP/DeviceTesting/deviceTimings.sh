@@ -1,14 +1,17 @@
 #!/bin/bash
 
-# OUTER Loop - increase $delay
-delay=10
+# Fixed DELAY between runs
+delay=15
+
+# OUTER Loop - increase $duration
+duration=10
 for multiplier in {1..4}; do
-        this_delay=$((delay*multiplier))
-    echo "Delay between samples: ${this_delay} seconds"
-    load="openssl speed -evp sha256 -bytes 16384 -seconds ${this_delay} \
+    this_dur=$((duration*multiplier))
+    echo "Delay between samples: ${this_dur} seconds"
+    load="openssl speed -evp sha256 -bytes 16384 -seconds ${this_dur} \
           -multi $(nproc)"
     echo "Workload: ${load}"
-    fname="${this_delay}sec.csv"
+    fname="${this_dur}sec.csv"
 
     # Start PMREP in backgrd and record PID
     pmrep -t 3 -o csv -F ${fname} \
@@ -21,13 +24,13 @@ for multiplier in {1..4}; do
     echo -n "Sample "
     for sample_ctr in {1..5}; do
         echo -n "${sample_ctr}, "
-        sleep $this_delay
+        sleep $delay
 ##        $load &> /dev/null
     done
-    kill ${pmrepPID}
+# Terminate PMREP. Force flush buffers by using SIGUSR1 signal 
+    kill -SIGUSR1 ${pmrepPID}
     echo; echo "------------------"
-    # Allow PMREP time to write CSV file
-    sleep 5
+
     if [ -e $fname ]; then
         echo "Succesfully created $fname"
     else
