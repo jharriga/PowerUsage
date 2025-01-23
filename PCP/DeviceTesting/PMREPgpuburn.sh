@@ -4,6 +4,12 @@
 # NOTE: the script doesnot modify the existing Power Cap
 ###################################################################
 
+# Function definitions
+cleanup () {
+    # reset GPU Frequency range back to original
+    nvidia-smi -lgc $min_freq,$max_freq
+}
+
 # Configure GPU Frequencies for the test runs
 # MIN and MAX were hardcoded for Nvidia A100
 min_freq=210
@@ -70,3 +76,8 @@ while [ $this_freq .lt. $max_freq ]; do
     ((loop_ctr++))
     this_freq=$(( min_freq*loop_ctr )) 
 done
+
+# reset GPU Frequencies
+cleanup
+
+# END
