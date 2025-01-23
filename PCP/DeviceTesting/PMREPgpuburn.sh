@@ -1,13 +1,21 @@
 #!/bin/bash
 # Run with existing Power Cap
-
-# define workload
-workload="./gpu_burn ${runtime}"
-echo "Workload: ${workload}"
     
 delay=15        # Fixed DELAY between INNER-LOOP runs
 runtime=30      # runtime duration for each gpu-burn run
 sampletime=3    # sample time for PMREP Metrics
+
+# Define workload
+executable="./gpu_burn"
+workload="${executable} ${runtime}"
+echo "Workload: ${workload}"
+
+# Verify workload is avalaible on the system
+if 
+if [ ! -x "$executable" ]; then
+  echo "File ${executable} is not found. Exiting"
+  exit 1
+fi
 
 # OUTER Loop - vary GPU Frequency
 freq_array=
