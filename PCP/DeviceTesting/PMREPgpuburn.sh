@@ -18,7 +18,7 @@ multiplier=2
 
 delay=15        # Fixed DELAY between INNER-LOOP runs
 runtime=100     # runtime duration for each 'gpu-burn' run
-sampletime=3    # sample time for PMREP Metrics
+sampletime=5    # sample time for PMREP Metrics
 
 # Define workload
 executable="./gpu_burn"                     # adjust for your executable location
